@@ -2,6 +2,9 @@
 """
 Created on 2025-07-29 (Tue) 18:43:50
 
+combine_file: IDに変換する前の生の関係性を保持 e.g. Compound::DB00001	DRUGBANK::x-atc::Compound:Atc	Atc::B01AE02
+triple_file: IDに変換した後の関係性を保持 e.g. 1706 0 1707
+
 @author: I.Azuma
 """
 # %%
@@ -19,7 +22,7 @@ def generate_entity_relation_id_file(
         smilesfile='./data/DRKG/drugname_smiles.txt',
         combine_file='./data/DRKG/train_without_ddi_raw.tsv', 
         drkg_file='./data/DRKG/drkg.tsv', 
-        entity_file='./data/DRKG/entities.tsv', 
+        entity_file='./data/DRKG/entities.tsv',
         relation_file='./data/DRKG/relations.tsv', 
         triple_file='./data/DRKG/train.tsv'
         ):
@@ -73,7 +76,6 @@ def generate_entity_relation_id_file(
     for i in range(len(triples2)):
         src, rel, dst = triples2[i][0], triples2[i][1], triples2[i][2]
         if rel in ['DRUGBANK::ddi-interactor-in::Compound:Compound', 'Hetionet::CrC::Compound:Compound']:
-            # 存储有SMILES的DDI信息
             if src in approved_drug_list and dst in approved_drug_list:
                 ddi_pair_single = "{}{}{}\n".format(src, '\t', dst)
                 ddi_pair_single_reverse = "{}{}{}\n".format(dst, '\t', src)

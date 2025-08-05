@@ -32,6 +32,7 @@ class DataLoaderSKGDDI(object):
         else:
             print('multi_type is False')
             train_file = os.path.join(data_dir, 'DDI_pos_neg.txt')
+
         """
         if args.data_name == 'DRKG':
             kg_file = os.path.join(data_dir, "train.tsv")
