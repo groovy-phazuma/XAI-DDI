@@ -1,3 +1,6 @@
+# 特定のフォルダ内の追跡を管理
+workspace/data/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
