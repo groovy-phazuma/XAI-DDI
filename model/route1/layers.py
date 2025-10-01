@@ -46,13 +46,14 @@ class RESCAL(nn.Module):
     def forward(self, heads, tails, rels, alpha_scores):
         rels = self.rel_emb(rels)
       
-        rels = F.normalize(rels, dim=-1)
-        heads = F.normalize(heads, dim=-1)
-        tails = F.normalize(tails, dim=-1)
+        rels = F.normalize(rels, dim=-1)  # (batch_size, kge_dim, kge_dim)
+        heads = F.normalize(heads, dim=-1)  # (batch_size, kge_dim)
+        tails = F.normalize(tails, dim=-1)  # (batch_size, kge_dim)
         
         rels = rels.view(-1, self.n_features, self.n_features)
-        # print(heads.size(),rels.size(),tails.size())
+        #print(heads.size(),rels.size(),tails.size())
         scores = heads @ rels @ tails.transpose(-2, -1)
+        #print(scores.size(), alpha_scores.size())
 
         if alpha_scores is not None:
           scores = alpha_scores * scores

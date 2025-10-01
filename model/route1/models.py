@@ -1,5 +1,6 @@
-import torch
+import math
 
+import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.nn.modules.container import ModuleList
@@ -17,19 +18,17 @@ from layers import (
                     IntraGraphAttention,
                     InterGraphAttention,
                     )
-import time
-
-
 
 
 class MVN_DDI(nn.Module):
-    def __init__(self, in_features, hidd_dim, kge_dim, rel_total, heads_out_feat_params, blocks_params):
+    def __init__(self, in_features, hidd_dim, kge_dim, rel_total, heads_out_feat_params, blocks_params, kg_emb_dim):
         super().__init__()
         self.in_features = in_features # n_atom_feats
         self.hidd_dim = hidd_dim # n_atom_hid
         self.rel_total = rel_total # rel_total (number of interaction types)
         self.kge_dim = kge_dim # kge_dim (dimension of interaction matrix)
         self.n_blocks = len(blocks_params) # [2, 2, 2, 2]
+        self.n_layers = len(heads_out_feat_params)
         
         self.initial_norm = LayerNorm(self.in_features)
         self.blocks = []
@@ -44,7 +43,15 @@ class MVN_DDI(nn.Module):
         self.co_attention = CoAttentionLayer(self.kge_dim)
         self.KGE = RESCAL(self.rel_total, self.kge_dim)
 
-    def forward(self, triples):
+        proj_input_dim = self.hidd_dim * 2 * self.n_layers
+        self.pair_proj = nn.Linear(proj_input_dim, self.kge_dim)
+        self.query_proj = nn.Linear(proj_input_dim, kg_emb_dim)
+        self.scale = math.sqrt(kg_emb_dim)
+
+        self.head_fusion_layer = nn.Linear(self.hidd_dim * self.n_layers + kg_emb_dim, self.kge_dim)
+        self.tail_fusion_layer = nn.Linear(self.hidd_dim * self.n_layers + kg_emb_dim, self.kge_dim)
+
+    def forward(self, triples, kg_features):
         h_data, t_data, rels, b_graph = triples
 
         h_data.x = self.initial_norm(h_data.x, h_data.batch)
@@ -69,11 +76,39 @@ class MVN_DDI(nn.Module):
         repr_t = torch.stack(repr_t, dim=-2)
         kge_heads = repr_h
         kge_tails = repr_t
-        # print(kge_heads.size(), kge_tails.size(), rels.size())
-        attentions = self.co_attention(kge_heads, kge_tails)
-        # attentions = None
-        scores = self.KGE(kge_heads, kge_tails, rels, attentions)
-        return scores     
+
+        # 1. generate pair features
+        pair_features = torch.cat([kge_heads, kge_tails], dim=-1) # (batch_size, embed_dim * 2)
+        aggregated_features = pair_features.flatten(start_dim=1)
+
+        # 2. generate query
+        query = self.query_proj(aggregated_features) # (batch_size, kg_feature_dim)
+
+        attention_scores = torch.matmul(query, kg_features.transpose(0, 1)) / self.scale
+        attention_weights = F.softmax(attention_scores, dim=-1)
+        context = torch.matmul(attention_weights, kg_features)
+    
+        # update head/tail representations with context
+        f_heads = kge_heads.flatten(start_dim=1)
+        f_tails = kge_tails.flatten(start_dim=1)
+
+        fused_h = torch.cat([f_heads, context], dim=-1) # (B, 512 + 200)
+        enriched_heads = self.head_fusion_layer(fused_h) # (B, n_features)
+
+        fused_t = torch.cat([f_tails, context], dim=-1) # (B, 512 + 200)
+        enriched_tails = self.tail_fusion_layer(fused_t) # (B, n_features)
+        
+        #print(('kge_heads:', kge_heads.size()))
+        #print('fused_h:', fused_h.size())
+        #print('enriched_heads:', enriched_heads.size())
+        
+        # scores
+        attentions = self.co_attention(enriched_heads, enriched_tails)
+        #print('attentions:', attentions.size())
+        scores = self.KGE(enriched_heads, enriched_tails, rels, attentions)
+
+        return scores, attention_weights
+
 
 #intra+inter
 class MVN_DDI_Block(nn.Module):
