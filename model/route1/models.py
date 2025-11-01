@@ -21,7 +21,7 @@ from layers import (
 
 
 class MVN_DDI(nn.Module):
-    def __init__(self, in_features, hidd_dim, kge_dim, rel_total, heads_out_feat_params, blocks_params, kg_emb_dim):
+    def __init__(self, in_features, hidd_dim, kge_dim, rel_total, heads_out_feat_params, blocks_params, kg_emb_dim, cross_attn=True):
         super().__init__()
         self.in_features = in_features # n_atom_feats
         self.hidd_dim = hidd_dim # n_atom_hid
@@ -43,6 +43,7 @@ class MVN_DDI(nn.Module):
         self.co_attention = CoAttentionLayer(self.kge_dim)
         self.KGE = RESCAL(self.rel_total, self.kge_dim)
 
+        self.cross_attn = cross_attn
         proj_input_dim = self.hidd_dim * 2 * self.n_layers
         self.pair_proj = nn.Linear(proj_input_dim, self.kge_dim)
         self.query_proj = nn.Linear(proj_input_dim, kg_emb_dim)
@@ -77,35 +78,35 @@ class MVN_DDI(nn.Module):
         kge_heads = repr_h
         kge_tails = repr_t
 
-        # 1. generate pair features
-        pair_features = torch.cat([kge_heads, kge_tails], dim=-1) # (batch_size, embed_dim * 2)
-        aggregated_features = pair_features.flatten(start_dim=1)
+        if self.cross_attn:
+            # 1. generate pair features
+            pair_features = torch.cat([kge_heads, kge_tails], dim=-1) # (batch_size, embed_dim * 2)
+            aggregated_features = pair_features.flatten(start_dim=1)
 
-        # 2. generate query
-        query = self.query_proj(aggregated_features) # (batch_size, kg_feature_dim)
+            # 2. generate query
+            query = self.query_proj(aggregated_features) # (batch_size, kg_feature_dim)
 
-        attention_scores = torch.matmul(query, kg_features.transpose(0, 1)) / self.scale
-        attention_weights = F.softmax(attention_scores, dim=-1)
-        context = torch.matmul(attention_weights, kg_features)
-    
-        # update head/tail representations with context
-        f_heads = kge_heads.flatten(start_dim=1)
-        f_tails = kge_tails.flatten(start_dim=1)
-
-        fused_h = torch.cat([f_heads, context], dim=-1) # (B, 512 + 200)
-        enriched_heads = self.head_fusion_layer(fused_h) # (B, n_features)
-
-        fused_t = torch.cat([f_tails, context], dim=-1) # (B, 512 + 200)
-        enriched_tails = self.tail_fusion_layer(fused_t) # (B, n_features)
+            attention_scores = torch.matmul(query, kg_features.transpose(0, 1)) / self.scale
+            attention_weights = F.softmax(attention_scores, dim=-1)
+            context = torch.matmul(attention_weights, kg_features)
         
-        #print(('kge_heads:', kge_heads.size()))
-        #print('fused_h:', fused_h.size())
-        #print('enriched_heads:', enriched_heads.size())
-        
-        # scores
-        attentions = self.co_attention(enriched_heads, enriched_tails)
-        #print('attentions:', attentions.size())
-        scores = self.KGE(enriched_heads, enriched_tails, rels, attentions)
+            # update head/tail representations with context
+            f_heads = kge_heads.flatten(start_dim=1)
+            f_tails = kge_tails.flatten(start_dim=1)
+
+            fused_h = torch.cat([f_heads, context], dim=-1) # (B, 512 + 200)
+            enriched_heads = self.head_fusion_layer(fused_h) # (B, n_features)
+
+            fused_t = torch.cat([f_tails, context], dim=-1) # (B, 512 + 200)
+            enriched_tails = self.tail_fusion_layer(fused_t) # (B, n_features)
+            
+            # scores
+            attentions = self.co_attention(enriched_heads, enriched_tails)
+            scores = self.KGE(enriched_heads, enriched_tails, rels, attentions)
+        else:
+            attentions = self.co_attention(kge_heads, kge_tails)
+            scores = self.KGE(kge_heads, kge_tails, rels, attentions)
+            attention_weights = None
 
         return scores, attention_weights
 
