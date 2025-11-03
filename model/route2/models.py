@@ -42,15 +42,25 @@ class MVN_DDI(nn.Module):
         
         self.co_attention = CoAttentionLayer(self.kge_dim)
         self.KGE = RESCAL(self.rel_total, self.kge_dim)
+        # binary classification MLP
+        self.classifier = nn.Sequential(
+            nn.Linear(kg_emb_dim, kg_emb_dim // 2),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(kg_emb_dim // 2, kg_emb_dim // 4),
+            nn.ReLU(),
+            nn.Linear(kg_emb_dim // 4, 1)
+        )
 
         self.cross_attn = cross_attn
-        proj_input_dim = self.hidd_dim * 2 * self.n_layers
+        proj_input_dim = 4 * self.hidd_dim * self.n_layers
         self.pair_proj = nn.Linear(proj_input_dim, self.kge_dim)
         self.query_proj = nn.Linear(proj_input_dim, kg_emb_dim)
         self.scale = math.sqrt(kg_emb_dim)
 
-        self.head_fusion_layer = nn.Linear(self.hidd_dim * self.n_layers + kg_emb_dim, self.kge_dim)
-        self.tail_fusion_layer = nn.Linear(self.hidd_dim * self.n_layers + kg_emb_dim, self.kge_dim)
+        self.query_norm = nn.LayerNorm(kg_emb_dim)
+        self.prot_norm = nn.LayerNorm(kg_emb_dim)
+        self.dropout = nn.Dropout(0.1)
 
     def forward(self, triples, kg_features):
         h_data, t_data, rels, b_graph = triples
@@ -75,40 +85,35 @@ class MVN_DDI(nn.Module):
         
         repr_h = torch.stack(repr_h, dim=-2)
         repr_t = torch.stack(repr_t, dim=-2)
-        kge_heads = repr_h
-        kge_tails = repr_t
 
+        flat_h = repr_h.reshape(repr_h.size(0), -1)  # (B, n_layers*hidd_dim)
+        flat_t = repr_t.reshape(repr_t.size(0), -1)  # (B, n_layers*hidd_dim)
+
+        # pair features (concat + hadamard + diff)
+        pair_feat = torch.cat([
+            flat_h, flat_t,
+            flat_h * flat_t,
+            torch.abs(flat_h - flat_t)
+        ], dim=-1)  # (B, 4 * n_layers * hidd_dim)
+
+
+        # cross attention
         if self.cross_attn:
-            # 1. generate pair features
-            pair_features = torch.cat([kge_heads, kge_tails], dim=-1) # (batch_size, embed_dim * 2)
-            aggregated_features = pair_features.flatten(start_dim=1)
+            q = self.query_proj(pair_feat)            # (B, kg_emb_dim)
+            q = self.query_norm(q).unsqueeze(1)       # normalize
+            k = v = self.prot_norm(kg_features).unsqueeze(0).repeat(q.size(0), 1, 1)
 
-            # 2. generate query
-            query = self.query_proj(aggregated_features) # (batch_size, kg_feature_dim)
-
-            attention_scores = torch.matmul(query, kg_features.transpose(0, 1)) / self.scale
-            attention_weights = F.softmax(attention_scores, dim=-1)
-            context = torch.matmul(attention_weights, kg_features)
-        
-            # update head/tail representations with context
-            f_heads = kge_heads.flatten(start_dim=1)
-            f_tails = kge_tails.flatten(start_dim=1)
-
-            fused_h = torch.cat([f_heads, context], dim=-1) # (B, 512 + 200)
-            enriched_heads = self.head_fusion_layer(fused_h) # (B, n_features)
-
-            fused_t = torch.cat([f_tails, context], dim=-1) # (B, 512 + 200)
-            enriched_tails = self.tail_fusion_layer(fused_t) # (B, n_features)
-            
-            # scores
-            attentions = self.co_attention(enriched_heads, enriched_tails)
-            scores = self.KGE(enriched_heads, enriched_tails, rels, attentions)
+            attn_scores = torch.bmm(q, k.transpose(1, 2)) / self.scale
+            attn_weights = torch.softmax(attn_scores, dim=-1)
+            cross_attn_out = torch.bmm(attn_weights, v).squeeze(1)
+            cross_attn_out = self.dropout(cross_attn_out)  # dropout to break symmetry
         else:
-            attentions = self.co_attention(kge_heads, kge_tails)
-            scores = self.KGE(kge_heads, kge_tails, rels, attentions)
-            attention_weights = None
+            cross_attn_out = kg_features.mean(dim=0, keepdim=True).expand(pair_feat.size(0), -1)
+            attn_weights = None
 
-        return scores, attention_weights
+        scores = self.classifier(cross_attn_out)
+
+        return scores, attn_weights
 
 
 #intra+inter
