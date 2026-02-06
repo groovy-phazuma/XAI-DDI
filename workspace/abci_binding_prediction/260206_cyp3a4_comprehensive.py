@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2026-02-04 (Wed) 16:54:48
+Created on 2026-02-06 (Fri) 13:53:21
 
-ABCIでのBoltzの実行を確かめるコード
+CYP familyに対して、drugbankに登録されている化合物との結合親和性を回収するスクリプト
 
 @author: I.Azuma
 """
@@ -16,16 +16,9 @@ from tqdm import tqdm
 # --- 設定 ---
 BASE_DIR = "/home/aah18044co/github/XAI-DDI"
 WORK_DIR = f"{BASE_DIR}/workspace/abci_binding_prediction"
-INPUT_YAML_DIR = f"{WORK_DIR}/results/jupyter_tutorial/inputs"
-OUTPUT_DIR = f"{WORK_DIR}/results/jupyter_tutorial/outputs"
+INPUT_YAML_DIR = f"{WORK_DIR}/results/260206_cyp3a4/inputs"
+OUTPUT_DIR = f"{WORK_DIR}/results/260206_cyp3a4/outputs"
 
-def clean_fasta(fasta_str):
-    """FASTA形式の文字列からヘッダーと改行を除去して純粋な配列にする"""
-    if not isinstance(fasta_str, str): return ""
-    lines = fasta_str.strip().split('\n')
-    # 1行目が '>' で始まる場合はヘッダーなので除外
-    sequence_lines = [line for line in lines if not line.startswith('>')]
-    return "".join(sequence_lines)
 
 def create_yaml(hgnc_symbol, protein_seq, drug_id, smiles, output_dir):
     """
@@ -73,8 +66,7 @@ def run_comprehensive_predict(fasta_map, drug_map):
     # 1. 全組み合わせのYAML生成
     job_list = []
     print(f"Generating YAMLs for {len(fasta_map)} proteins x {len(drug_map)} drugs...")
-    for hgnc, raw_seq in tqdm(fasta_map.items()):
-        seq = clean_fasta(raw_seq) # 配列のクリーンアップ
+    for hgnc, seq in tqdm(fasta_map.items()):
         for d_id, smi in drug_map.items():
             # 配列が空でないか、SMILESが有効かチェック
             if not seq or len(seq) < 10 or pd.isna(smi): 
@@ -84,7 +76,7 @@ def run_comprehensive_predict(fasta_map, drug_map):
             job_list.append({"job_id": job_name, "hgnc": hgnc, "drug_id": d_id})
 
     # マッピング表の保存
-    pd.DataFrame(job_list).to_csv(f"{WORK_DIR}/job_mapping.csv", index=False)
+    pd.DataFrame(job_list).to_csv(f"{OUTPUT_DIR}/job_mapping.csv", index=False)
 
     # 2. Boltz実行
     cmd = [
@@ -92,8 +84,8 @@ def run_comprehensive_predict(fasta_map, drug_map):
         "--out_dir", OUTPUT_DIR, 
         "--use_msa_server", 
         "--accelerator", "gpu", 
-        "--devices", "1",
-        "--num_workers", "2" 
+        "--devices", "4",
+        "--num_workers", "4" 
     ]
     
     print("\n🚀 Starting Boltz Prediction...")
@@ -106,18 +98,16 @@ def run_comprehensive_predict(fasta_map, drug_map):
 if __name__ == "__main__":
     # データ読み込み
     print("Loading data...")
-    fasta_dict = pd.read_pickle(f'{BASE_DIR}/dataset/target_proteins/hgnc_fasta_dict_972.pkl')
+    fasta_dict = pd.read_pickle(f'{BASE_DIR}/dataset/target_proteins/cyp_fasta_dict_29.pkl')
     info_df = pd.read_csv(f'{BASE_DIR}/dataset/drugbank/drug_smiles.csv')
     smiles_dict = dict(zip(info_df['drug_id'], info_df['smiles']))
 
     # --- テスト実行の設定 ---
-    # 最初の2つのタンパク質と最初の5つのドラッグ
-    target_hgncs = list(fasta_dict.keys())[:2]
+    target_hgncs = ['CYP3A4']
     test_fasta = {k: fasta_dict[k] for k in target_hgncs}
     
-    target_drug_ids = list(smiles_dict.keys())[:5]
+    target_drug_ids = list(smiles_dict.keys())
     test_drugs = {k: smiles_dict[k] for k in target_drug_ids} 
     
     # 実行
     run_comprehensive_predict(test_fasta, test_drugs)
-
