@@ -68,6 +68,11 @@ def run_comprehensive_predict(fasta_map, drug_map):
     print(f"Generating YAMLs for {len(fasta_map)} proteins x {len(drug_map)} drugs...")
     for hgnc, seq in tqdm(fasta_map.items()):
         for d_id, smi in drug_map.items():
+            # すでに存在する場合はスキップ
+            job_name = f"{hgnc}_{d_id}"
+            if Path(f"{INPUT_YAML_DIR}/{job_name}.yaml").exists():
+                job_list.append({"job_id": job_name, "hgnc": hgnc, "drug_id": d_id})
+                continue
             # 配列が空でないか、SMILESが有効かチェック
             if not seq or len(seq) < 10 or pd.isna(smi): 
                 continue
@@ -84,8 +89,8 @@ def run_comprehensive_predict(fasta_map, drug_map):
         "--out_dir", OUTPUT_DIR, 
         "--use_msa_server", 
         "--accelerator", "gpu", 
-        "--devices", "4",
-        "--num_workers", "4" 
+        "--devices", "1",
+        "--num_workers", "1" 
     ]
     
     print("\n🚀 Starting Boltz Prediction...")

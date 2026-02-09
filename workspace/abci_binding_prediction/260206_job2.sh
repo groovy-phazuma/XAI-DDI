@@ -1,8 +1,8 @@
 #! /bin/bash
 #PBS -P gah51684
-#PBS -q rt_HF
-#PBS -l select=4
-#PBS -l walltime=12:0:0
+#PBS -q rt_HG
+#PBS -l select=1
+#PBS -l walltime=24:0:0
 #PBS -j oe
 #PBS -k oed
 #PBS -o job.log
