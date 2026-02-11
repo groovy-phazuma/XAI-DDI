@@ -1,0 +1,9 @@
+# 実行前に  pip install -U pip setuptools wheel
+
+numpy
+pandas
+scikit-learn
+torch==2.10.0
+torch-geometric==2.5.3
+rdkit
+wandb

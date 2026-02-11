@@ -7,7 +7,7 @@ Proposed Model Route2
 @author: I.Azuma
 """
 # %%
-BASE_DIR = '/workspace/HDD/Azuma_DDI'
+BASE_DIR = '/home/aah18044co/github/'
 
 
 import time 
@@ -24,17 +24,17 @@ import torch
 from torch import optim
 
 import sys
-sys.path.append(f'{BASE_DIR}/github/XAI-DDI/model')
+sys.path.append(f'{BASE_DIR}/XAI-DDI/model')
 
-import os
-os.chdir(f'{BASE_DIR}/github/XAI-DDI/model/route2')
+#import os
+#os.chdir(f'{BASE_DIR}/model/route2')
 
 from route2 import models, custom_loss
 from route2.data_preprocessing import DrugDataset, DrugDataLoader
 import warnings
 warnings.filterwarnings('ignore',category=UserWarning)
 
-sys.path.append(f'{BASE_DIR}/github/wandb-util')
+sys.path.append(f'{BASE_DIR}/wandb-util')
 from wandbutil import WandbLogger
 
 
@@ -106,18 +106,7 @@ s1_data_loader = DrugDataLoader(s1_data, batch_size=batch_size *3,num_workers=0)
 s2_data_loader = DrugDataLoader(s2_data, batch_size=batch_size *3,num_workers=0)
 
 # load KG embeddings
-kg_features = pd.read_pickle(f'{BASE_DIR}/KG_datasource/MyKG/v0/embed/drkg_entity_emb_62507x200.pkl')
-info_df = pd.read_csv(f'{BASE_DIR}/KG_datasource/MyKG/v0/entities.tsv', sep="\t", header=None)
-info_df['type'] = info_df[0].apply(lambda x: x.split(':')[0])
-
-
-selected_genes = pd.read_pickle(f'{BASE_DIR}/KG_datasource/MyKG/v0/251205_compound_neighbor_genes_14662.pkl')
-selected_genes = sorted(list(selected_genes))
-selected_indices = info_df[info_df[0].isin(selected_genes)].index.tolist()
-kg_features = kg_features[selected_indices]
-kg_features = torch.tensor(kg_features, dtype=torch.float32).to(device)
-
-#pd.to_pickle(kg_features, '/workspace/HDD/Azuma_DDI/github/XAI-DDI/dataset/kg_embeddings/selected_genes_14662_embeddings.pkl')
+kg_features = pd.read_pickle(f'{BASE_DIR}/dataset/kg_embeddings/selected_genes_14662_embeddings.pkl')
 
 # %%
 def do_compute(batch, device, model, kg_features):

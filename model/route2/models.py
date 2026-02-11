@@ -12,7 +12,7 @@ from torch_geometric.nn import (
                                 Set2Set,
                                 )
 
-from layers import (
+from model.route2.layers import (
                     CoAttentionLayer, 
                     RESCAL, 
                     IntraGraphAttention,
