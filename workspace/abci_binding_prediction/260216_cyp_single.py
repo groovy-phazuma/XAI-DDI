@@ -10,6 +10,7 @@ cyp1 (CYP11A1, CYP11B1, CYP11B2, CYP17A1, CYP19A1) に対して
 @author: I.Azuma
 """
 # %%
+import argparse
 import numpy as np
 import pandas as pd
 import os, subprocess, yaml, json
@@ -19,8 +20,6 @@ from tqdm import tqdm
 # --- 設定 ---
 BASE_DIR = "/home/aah18044co/github/XAI-DDI"
 WORK_DIR = f"{BASE_DIR}/workspace/abci_binding_prediction"
-INPUT_YAML_DIR = f"{WORK_DIR}/results/260211_cyp1/inputs"
-OUTPUT_DIR = f"{WORK_DIR}/results/260211_cyp1/outputs"
 
 
 def create_yaml(hgnc_symbol, protein_seq, drug_id, smiles, output_dir):
@@ -104,6 +103,19 @@ def run_comprehensive_predict(fasta_map, drug_map):
         print(f"\n❌ Boltz failed with error: {e}")
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--hgnc",
+        type=str,
+        required=True,
+        help="HGNC symbol. 複数指定はカンマ区切り (例: CYP11A1,CYP2D6) または複数回指定可",
+    )
+    
+    args = parser.parse_args()
+    target_hgncs = [x.strip() for x in args.hgnc.split(",") if x.strip()]
+    
+    INPUT_YAML_DIR = f"{WORK_DIR}/results/260216_{'_'.join(target_hgncs)}/inputs"
+    OUTPUT_DIR = f"{WORK_DIR}/results/260216_{'_'.join(target_hgncs)}/outputs"
     # データ読み込み
     print("Loading data...")
     fasta_dict = pd.read_pickle(f'{BASE_DIR}/dataset/target_proteins/cyp_fasta_dict_29.pkl')
@@ -111,7 +123,6 @@ if __name__ == "__main__":
     smiles_dict = dict(zip(info_df['drug_id'], info_df['smiles']))
 
     # --- テスト実行の設定 ---
-    target_hgncs = ['CYP11A1']
     test_fasta = {k: fasta_dict[k] for k in target_hgncs}
     
     target_drug_ids = list(smiles_dict.keys())
