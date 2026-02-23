@@ -1,6 +1,7 @@
 dataset/*
 workspace/data/*
 workspace/abci_binding_prediction/results/*
+workspace/abci_benchmarking/results/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

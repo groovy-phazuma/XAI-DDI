@@ -7,7 +7,7 @@ Proposed Model Route2
 @author: I.Azuma
 """
 # %%
-BASE_DIR = '/home/aah18044co/github/'
+BASE_DIR = '/home/aah18044co/github'
 
 
 import time 
@@ -67,7 +67,7 @@ parser.add_argument('--weight_decay', type=float, default=5e-4)
 parser.add_argument('--neg_samples', type=int, default=1)
 parser.add_argument('--data_size_ratio', type=int, default=1)
 parser.add_argument('--use_cuda', type=bool, default=True, choices=[0, 1])
-parser.add_argument('--pkl_name', type=str, default=f'{BASE_DIR}/workspace/Model_Dev/route3/results/251205/selected_genes_attention.pkl')
+parser.add_argument('--pkl_name', type=str, default=f'{BASE_DIR}/XAI-DDI/workspace/abci_benchmarking/results/260218/selected_genes_attention.pkl')
 
 # args = parser.parse_args()
 args, unknown = parser.parse_known_args(args=[])  # for jupyter notebook
@@ -87,9 +87,9 @@ device = 'cuda:0' if torch.cuda.is_available() and args.use_cuda else 'cpu'
 print(args)
 
 # %% Dataset
-df_ddi_train = pd.read_csv(f'{BASE_DIR}/github/XAI-DDI/dataset/inductive_data/fold1/train.csv')
-df_ddi_s1 = pd.read_csv(f'{BASE_DIR}/github/XAI-DDI/dataset/inductive_data/fold1/s1.csv')
-df_ddi_s2 = pd.read_csv(f'{BASE_DIR}/github/XAI-DDI/dataset/inductive_data/fold1/s2.csv')
+df_ddi_train = pd.read_csv(f'{BASE_DIR}/XAI-DDI/dataset/inductive_data/fold1/train.csv')
+df_ddi_s1 = pd.read_csv(f'{BASE_DIR}/XAI-DDI/dataset/inductive_data/fold1/s1.csv')
+df_ddi_s2 = pd.read_csv(f'{BASE_DIR}/XAI-DDI/dataset/inductive_data/fold1/s2.csv')
 
 train_tup = [(h, t, r) for h, t, r in zip(df_ddi_train['d1'], df_ddi_train['d2'], df_ddi_train['type'])]
 s1_tup = [(h, t, r) for h, t, r in zip(df_ddi_s1['d1'], df_ddi_s1['d2'], df_ddi_s1['type'])]
@@ -106,7 +106,7 @@ s1_data_loader = DrugDataLoader(s1_data, batch_size=batch_size *3,num_workers=0)
 s2_data_loader = DrugDataLoader(s2_data, batch_size=batch_size *3,num_workers=0)
 
 # load KG embeddings
-kg_features = pd.read_pickle(f'{BASE_DIR}/dataset/kg_embeddings/selected_genes_14662_embeddings.pkl')
+kg_features = pd.read_pickle(f'{BASE_DIR}/XAI-DDI/dataset/kg_embeddings/selected_genes_14662_embeddings.pkl')
 
 # %%
 def do_compute(batch, device, model, kg_features):
@@ -170,8 +170,8 @@ option_list['data_size_ratio'] = data_size_ratio
 logger = WandbLogger(
     entity="XAI-DDI",  
     project="251101_route2_pairfeats_crossattn",  
-    group="v3", 
-    name="251205_selected_genes_attention",
+    group="abci", 
+    name="260218_selected_genes_attention",
     config=option_list,
 )
 

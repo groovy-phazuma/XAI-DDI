@@ -1,0 +1,80 @@
+_wandb:
+    value:
+        cli_version: 0.24.2
+        e:
+            mv2melbi3yuoan0fsui3xpf3axzwko5d:
+                codePath: /home/aah18044co/github/XAI-DDI/workspace/abci_benchmarking/260209_proposed_initial_dev.py
+                codePathLocal: workspace/abci_benchmarking/260209_proposed_initial_dev.py
+                cpu_count: 96
+                cpu_count_logical: 192
+                cudaVersion: "13.0"
+                disk:
+                    /:
+                        total: "1081849024512"
+                        used: "12950867968"
+                email: phazuma19980625@gmail.com
+                executable: /home/aah18044co/github/XAI-DDI/benchmark_env_py312/bin/python
+                git:
+                    commit: 7c9db06f0d767bdedae8ff4a3980fbb90475bc85
+                    remote: https://github.com/groovy-phazuma/XAI-DDI.git
+                gpu: NVIDIA H200
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "150754820096"
+                      name: NVIDIA H200
+                      uuid: GPU-07fe314c-d7ae-2498-4830-64c7ded9f4b2
+                host: hnode091
+                memory:
+                    total: "2163698049024"
+                os: Linux-5.14.0-427.13.1.el9_4.x86_64-x86_64-with-glibc2.34
+                program: /home/aah18044co/github/XAI-DDI/workspace/abci_benchmarking/260209_proposed_initial_dev.py
+                python: CPython 3.12.9
+                root: /home/aah18044co/github/XAI-DDI
+                startedAt: "2026-02-18T13:44:33.927411Z"
+                writerId: mv2melbi3yuoan0fsui3xpf3axzwko5d
+        m: []
+        python_version: 3.12.9
+        t:
+            "1":
+                - 1
+                - 5
+                - 53
+                - 77
+            "2":
+                - 1
+                - 5
+                - 53
+                - 77
+            "3":
+                - 13
+                - 16
+            "4": 3.12.9
+            "5": 0.24.2
+            "8":
+                - 1
+            "10":
+                - 20
+            "12": 0.24.2
+            "13": linux-x86_64
+batch_size:
+    value: 128
+data_size_ratio:
+    value: 1
+kge_dim:
+    value: 128
+lr:
+    value: 0.0001
+n_atom_feats:
+    value: 55
+n_atom_hid:
+    value: 128
+n_epochs:
+    value: 200
+neg_samples:
+    value: 1
+rel_total:
+    value: 86
+weight_decay:
+    value: 0.0005
