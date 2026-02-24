@@ -107,12 +107,6 @@ def main():
     parser.add_argument("--out_dir", type=str, default="/home/aah18044co/github/XAI-DDI/workspace/abci_benchmarking/results/260223/fold1")
     parser.add_argument("--run_name", type=str, default=None, help="if None, auto-generate by time/jobid")
 
-    # wandb
-    parser.add_argument("--wandb_entity", type=str, default="XAI-DDI")
-    parser.add_argument("--wandb_project", type=str, default="251101_route2_pairfeats_crossattn")
-    parser.add_argument("--wandb_group", type=str, default="abci")
-    parser.add_argument("--wandb_mode", type=str, default="online", choices=["online", "offline", "disabled"])
-
     # model hyperparams
     parser.add_argument("--n_atom_feats", type=int, default=55)
     parser.add_argument("--n_atom_hid", type=int, default=128)
@@ -141,12 +135,10 @@ def main():
     import os
     os.chdir(f'{BASE_DIR}/XAI-DDI')
     sys.path.append(f"{BASE_DIR}/XAI-DDI/model")
-    sys.path.append(f"{BASE_DIR}/wandb-util")
 
 
     from route2 import models, custom_loss
     from route2.data_preprocessing import DrugDataset, DrugDataLoader
-    from wandbutil import WandbLogger
 
     # --- run naming / out dir ---
     jobid = os.environ.get("PBS_JOBID", "nojobid")
@@ -166,17 +158,6 @@ def main():
     print("run_dir :", run_dir)
     print("device  :", device)
     print("args    :", args)
-
-    # --- wandb settings ---
-    # 重要: APIキーは環境変数 WANDB_API_KEY か ~/.netrc に入れる
-    # ABCIでネットワークが不安/制限あるなら --wandb_mode offline を推奨
-    os.environ.setdefault("WANDB_START_METHOD", "thread")
-    if args.wandb_mode == "offline":
-        os.environ["WANDB_MODE"] = "offline"
-    elif args.wandb_mode == "disabled":
-        os.environ["WANDB_MODE"] = "disabled"
-    else:
-        os.environ["WANDB_MODE"] = "online"
 
     # --- dataset ---
     fold_dir = os.path.join(BASE_DIR, args.fold_dir)
@@ -219,14 +200,6 @@ def main():
     option_list = defaultdict(list)
     for k, v in vars(args).items():
         option_list[k] = v
-
-    logger = WandbLogger(
-        entity=args.wandb_entity,
-        project=args.wandb_project,
-        group=args.wandb_group,
-        name=run_name,
-        config=option_list,
-    )
 
     # --- resume if needed ---
     start_epoch = 1
@@ -323,7 +296,7 @@ def main():
             save_ckpt(best_ckpt_path, epoch, model, optimizer, scheduler, best_s1_acc, args)
             print(f"[BEST] epoch={epoch} best_s1_acc={best_s1_acc:.4f} saved: {best_ckpt_path}")
 
-        # wandb log
+        # log
         loss_dict = {
             "train_loss": train_loss,
             "s1_loss": s1_loss,
@@ -341,7 +314,6 @@ def main():
             "s2_precision": s2_precision,
             "s2_recall": s2_recall,
         }
-        logger(epoch=epoch, **loss_dict)
 
         print(f"Epoch: {epoch} ({time.time() - start:.2f}s), train_loss: {train_loss:.4f}, s1_loss: {s1_loss:.4f}, s2_loss: {s2_loss:.4f}")
         print(f"\ttrain_acc: {train_acc:.4f}, train_roc: {train_auc_roc:.4f}, train_precision: {train_precision:.4f}, train_recall: {train_recall:.4f}")

@@ -5,7 +5,7 @@
 #PBS -l walltime=24:00:00
 #PBS -j oe
 #PBS -k oed
-#PBS -o job.log
+#PBS -o fold2_job.log
 
 set -euo pipefail
 
@@ -22,15 +22,9 @@ source /home/aah18044co/github/XAI-DDI/benchmark_env_py312/bin/activate
 python -V
 which python
 
-# wandb (おすすめ: offline から始める)
-# export WANDB_API_KEY="YOUR_WANDB_API_KEY"
-export WANDB_START_METHOD=thread
-export WANDB_DIR="$PBS_O_WORKDIR/wandb_cache"
-mkdir -p "$WANDB_DIR"
-
 # 実行
 python /home/aah18044co/github/XAI-DDI/workspace/abci_benchmarking/260223_train_route2_abci.py \
-  --wandb_mode offline \
   --batch_size 128 \
   --n_epochs 200 \
-  --out_dir /home/aah18044co/github/XAI-DDI/workspace/abci_benchmarking/results/260223/fold1
+  --fold_dir /home/aah18044co/github/XAI-DDI/dataset/inductive_data/fold2 \
+  --out_dir /home/aah18044co/github/XAI-DDI/workspace/abci_benchmarking/results/260223/fold2
