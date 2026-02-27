@@ -5,7 +5,7 @@
 #PBS -l walltime=24:00:00
 #PBS -j oe
 #PBS -k oed
-#PBS -o fold2_job.log
+#PBS -o fold4_job.log
 
 set -euo pipefail
 
@@ -26,5 +26,5 @@ which python
 python /home/aah18044co/github/XAI-DDI/workspace/abci_benchmarking/260223_train_route2_abci.py \
   --batch_size 128 \
   --n_epochs 200 \
-  --fold_dir /home/aah18044co/github/XAI-DDI/dataset/inductive_data/fold2 \
-  --out_dir /home/aah18044co/github/XAI-DDI/workspace/abci_benchmarking/results/260223/fold2
+  --fold_dir /home/aah18044co/github/XAI-DDI/dataset/inductive_data/fold4 \
+  --out_dir /home/aah18044co/github/XAI-DDI/workspace/abci_benchmarking/results/260223/fold4
