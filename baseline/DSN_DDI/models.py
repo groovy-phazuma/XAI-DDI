@@ -11,7 +11,7 @@ from torch_geometric.nn import (
                                 Set2Set,
                                 )
 
-from layers import (
+from baseline.DSN_DDI.layers import (
                     CoAttentionLayer, 
                     RESCAL, 
                     IntraGraphAttention,

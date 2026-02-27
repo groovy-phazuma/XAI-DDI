@@ -7,12 +7,19 @@ DSN-DDIのtransductiveな問題設定における性能評価
 データの準備: 250802_benchmark_preparation.py
 KGの埋め込み: 250805_mykg_embedding.py
 
+localのPCではメモリの問題で実行できなかったため、ABCIのGPU環境で実行
+- batch_size: 128
+    - 128で回ることを確認した
+    - 1024でも大丈夫そう
+
+- lr: 0.001
+- epoch: 100
 
 @author: I.Azuma
 """
 # %%
-BASE_DIR = '/workspace/HDD/Azuma_DDI'
-DATA_DIR = BASE_DIR+'/github/MUFFIN/data'
+BASE_DIR = '/home/aah18044co'
+DATA_DIR = f'{BASE_DIR}/github/MUFFIN/data'
 
 import random
 import numpy as np
@@ -44,8 +51,8 @@ os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 from torch.cuda.amp import autocast, GradScaler
 
 import sys
-sys.path.append(BASE_DIR+'/github/XAI-DDI/baseline/MUFFIN')
-from model import GCNModel
+sys.path.append(f'{BASE_DIR}/github/XAI-DDI/baseline/MUFFIN')
+from muffin_model import GCNModel
 from dataset import DataLoaderSKGDDI
 from utils import evaluate, save_model, load_model, early_stopping
 
@@ -58,17 +65,17 @@ def parse_SKGDDI_args():
 
     parser.add_argument('--data_name', nargs='?', default='DrugBank',help='Choose a dataset from {DrugBank, DRKG}')
     parser.add_argument('--data_dir', nargs='?', default=DATA_DIR+'/', help='Input data path.')
-    parser.add_argument('--kg_file', nargs='?', default=BASE_DIR+'/DDI_datasource/DDI_KG/250729/train.tsv', help='KG file path.')
-    parser.add_argument('--graph_embedding_file', nargs='?', default=DATA_DIR+'/DRKG/gin_supervised_masking_embedding.npy')
-    parser.add_argument('--entity_embedding_file', nargs='?', default=BASE_DIR+'/workspace/KG_preparation/results/250805/embed/entity_embeddings.npy')
-    parser.add_argument('--relation_embedding_file', nargs='?', default=BASE_DIR+'/workspace/KG_preparation/results/250805/embed/relation_embeddings.npy')
+    parser.add_argument('--kg_file', nargs='?', default=f'{BASE_DIR}/github/XAI-DDI/dataset/muffin_data/train.tsv', help='KG file path.')
+    parser.add_argument('--graph_embedding_file', nargs='?', default=f'{DATA_DIR}/DRKG/gin_supervised_masking_embedding.npy')
+    parser.add_argument('--entity_embedding_file', nargs='?', default=f'{BASE_DIR}/github/XAI-DDI/dataset/muffin_data/entity_embeddings.npy')
+    parser.add_argument('--relation_embedding_file', nargs='?', default=f'{BASE_DIR}/github/XAI-DDI/dataset/muffin_data/relation_embeddings.npy')
 
     parser.add_argument('--use_pretrain', type=int, default=1, help='0: No pretrain, 1: Pretrain with the learned embeddings')
     parser.add_argument('--pretrain_model_path', nargs='?', default='trained_model/model.pth', help='Path of stored model.')
 
-    parser.add_argument('--DDI_batch_size', type=int, default=16, help='DDI batch size.')  # Reduced from 64
-    parser.add_argument('--kg_batch_size', type=int, default=16, help='KG batch size.')  # Reduced from 64
-    parser.add_argument('--DDI_evaluate_size', type=int, default=16, help='DDI evaluate size.')  # Reduced from 64
+    parser.add_argument('--DDI_batch_size', type=int, default=4096, help='DDI batch size.')  # Reduced from 64
+    parser.add_argument('--kg_batch_size', type=int, default=4096, help='KG batch size.')  # Reduced from 64
+    parser.add_argument('--DDI_evaluate_size', type=int, default=4096, help='DDI evaluate size.')  # Reduced from 64
     #parser.add_argument('-n', '--negative_sample_size', default=128, type=int)
 
     parser.add_argument('--entity_dim', type=int, default=256, help='Entity Embedding size.')
@@ -81,12 +88,11 @@ def parse_SKGDDI_args():
     parser.add_argument('--kg_l2loss_lambda', type=float, default=1e-5, help='Lambda when calculating KG l2 loss.')
     parser.add_argument('--DDI_l2loss_lambda', type=float, default=1e-5, help='Lambda when calculating DDI l2 loss.')
 
-    parser.add_argument('--lr', type=float, default=0.0001)
-    parser.add_argument('--n_epoch', type=int, default=200)
+    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--n_epoch', type=int, default=100)
     parser.add_argument('--stopping_steps', type=int, default=10, help='Number of epoch for early stopping')
 
     parser.add_argument('--ddi_print_every', type=int, default=50, help='Iter interval of printing DDI loss.')
-    parser.add_argument('--accumulation_steps', type=int, default=4, help='Number of steps to accumulate gradients')  # Add gradient accumulation
 
     parser.add_argument('--kg_print_every', type=int, default=50, help='Iter interval of printing KG loss.')
     parser.add_argument('--evaluate_every', type=int, default=50, help='Epoch interval of evaluating DDI.')
@@ -249,40 +255,24 @@ for i in range(5):
                 batch_y = batch_y.to(device)
 
             # Use mixed precision training
-            with autocast():
-                out = model('calc_ddi_loss', train_graph, batch_x, embedding_pre, embedding_after, loader_idx, epoch)
+            out = model('calc_ddi_loss', train_graph, batch_x, embedding_pre, embedding_after, loader_idx, epoch)
 
-                if args.multi_type == 'False':
-                    out = out.squeeze(-1)
-                    loss = loss_func(out, batch_y.float())
-                else:
-                    loss = loss_func(out, batch_y.long())
+            if args.multi_type == 'False':
+                out = out.squeeze(-1)
+                loss = loss_func(out, batch_y.float())
+            else:
+                loss = loss_func(out, batch_y.long())
 
-            # Gradient accumulation with mixed precision
-            loss = loss / args.accumulation_steps
-            scaler.scale(loss).backward()
-            
-            if (iter % args.accumulation_steps) == 0:
-                scaler.step(optimizer)
-                scaler.update()
-                optimizer.zero_grad()
-                # Clear cache periodically
-                if (iter % (args.accumulation_steps * 10)) == 0:
-                    torch.cuda.empty_cache()
-            
-            ddi_total_loss += loss.item() * args.accumulation_steps  # Adjust for accumulation
-
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+            ddi_total_loss += loss.item()
+    
             if (iter % args.ddi_print_every) == 0:
                 print(
                     'DDI Training: Epoch {:04d} Iter {:04d} / {:04d} | Time {:.1f}s | Iter Loss {:.4f} | Iter Mean '
                     'Loss {:.4f}'.format(
                         epoch, iter, n_ddi_batch, time() - time2, loss.item(), ddi_total_loss / iter))
-        
-        # Apply any remaining gradients at the end of epoch
-        if (iter % args.accumulation_steps) != 0:
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad()
         
         print(
             'DDI Training: Epoch {:04d} Total Iter {:04d} | Total Time {:.1f}s | Iter Mean Loss {:.4f}'.format(

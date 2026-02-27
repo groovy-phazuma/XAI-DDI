@@ -2,6 +2,8 @@ dataset/*
 workspace/data/*
 workspace/abci_binding_prediction/results/*
 workspace/abci_benchmarking/results/*
+workspace/abci_benchmarking/baselines/DSN-DDI/results/*
+workspace/abci_benchmarking/baselines/MUFFIN/results/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

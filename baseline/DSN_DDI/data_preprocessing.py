@@ -12,7 +12,7 @@ from rdkit.Chem import AllChem
 import pandas as pd
 import numpy as np
 
-df_drugs_smiles = pd.read_csv('./../../dataset/drugbank/drug_smiles.csv')
+df_drugs_smiles = pd.read_csv('./dataset/drugbank/drug_smiles.csv')
 
 DRUG_TO_INDX_DICT = {drug_id: indx for indx, drug_id in enumerate(df_drugs_smiles['drug_id'])}
 
@@ -124,7 +124,7 @@ TOTAL_ATOM_FEATS = (next(iter(MOL_EDGE_LIST_FEAT_MTX.values()))[1].shape[-1])
 
 
 ##### DDI statistics and counting #######
-df_all_pos_ddi = pd.read_csv('./../../dataset/drugbank/ddis.csv')
+df_all_pos_ddi = pd.read_csv('./dataset/drugbank/ddis.csv')
 all_pos_tup = [(h, t, r) for h, t, r in zip(df_all_pos_ddi['d1'], df_all_pos_ddi['d2'], df_all_pos_ddi['type'])]
 
 
