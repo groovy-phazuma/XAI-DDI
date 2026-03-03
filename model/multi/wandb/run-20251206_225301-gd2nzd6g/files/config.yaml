@@ -1,0 +1,87 @@
+_wandb:
+    value:
+        cli_version: 0.23.0
+        e:
+            hsl0qf4ve4pdqaqf6ex7cifz6ifc1epz:
+                codePath: /workspace/HDD/Azuma_DDI/workspace/Model_Dev/route3/251206_selected_genes_attention.py
+                cpu_count: 32
+                cpu_count_logical: 64
+                cudaVersion: "13.0"
+                disk:
+                    /:
+                        total: "982240026624"
+                        used: "140188442624"
+                email: phazuma19980625@gmail.com
+                executable: /opt/251115_ddi_env/bin/python
+                git:
+                    commit: 6b2143495edb2cc3abc9abbc0c16f4d8fbe1a163
+                    remote: https://github.com/groovy-phazuma/XAI-DDI.git
+                gpu: NVIDIA GeForce RTX 3090
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 10496
+                      memoryTotal: "25769803776"
+                      name: NVIDIA GeForce RTX 3090
+                      uuid: GPU-e34146f2-f101-da25-8e4b-be4bde25c188
+                host: 4c9a360d4a40
+                memory:
+                    total: "270112415744"
+                os: Linux-6.14.0-27-generic-x86_64-with-glibc2.35
+                program: /workspace/HDD/Azuma_DDI/workspace/Model_Dev/route3/251206_selected_genes_attention.py
+                python: CPython 3.11.4
+                root: /workspace/HDD/Azuma_DDI/github/XAI-DDI/model/route2
+                startedAt: "2025-12-06T13:53:01.967847Z"
+                writerId: hsl0qf4ve4pdqaqf6ex7cifz6ifc1epz
+        m: []
+        python_version: 3.11.4
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 77
+                - 105
+            "2":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 53
+                - 77
+                - 105
+            "3":
+                - 2
+                - 13
+                - 16
+            "4": 3.11.4
+            "5": 0.23.0
+            "6": 4.50.3
+            "8":
+                - 1
+            "10":
+                - 20
+            "12": 0.23.0
+            "13": linux-x86_64
+batch_size:
+    value: 128
+data_size_ratio:
+    value: 1
+kge_dim:
+    value: 128
+lr:
+    value: 0.0001
+n_atom_feats:
+    value: 55
+n_atom_hid:
+    value: 128
+n_epochs:
+    value: 200
+neg_samples:
+    value: 1
+rel_total:
+    value: 86
+weight_decay:
+    value: 0.0005
