@@ -23,7 +23,7 @@ import time
 
 
 class MVN_DDI(nn.Module):
-    def __init__(self, in_features, hidd_dim, kge_dim, rel_total, heads_out_feat_params, blocks_params):
+    def __init__(self, in_features, hidd_dim, kge_dim, rel_total, heads_out_feat_params, blocks_params, n_class=6):
         super().__init__()
         self.in_features = in_features # n_atom_feats
         self.hidd_dim = hidd_dim # n_atom_hid

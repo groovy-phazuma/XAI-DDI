@@ -230,3 +230,126 @@ S1: acc=0.7316, auc_roc=0.8084, ap=0.8043, f1=0.7152, precision=0.7619, recall=0
 S2: acc=0.7620, auc_roc=0.8398, ap=0.8296, f1=0.7696, precision=0.7459, recall=0.7948, int_ap=0.8296
 
 """
+
+# %% Time-split
+parser = argparse.ArgumentParser()
+
+# paths / env
+parser.add_argument("--base_dir", type=str, default="/home/aah18044co/github")
+parser.add_argument("--fold_dir", type=str, default="/home/aah18044co/github/XAI-DDI/dataset/drugbank/time_split")
+parser.add_argument("--kg_emb_path", type=str, default="/home/aah18044co/github/XAI-DDI/dataset/kg_embeddings/selected_genes_14662_embeddings.pkl")
+
+# output
+parser.add_argument("--out_dir", type=str, default="/home/aah18044co/github/XAI-DDI/dataset/drugbank/time_split")
+parser.add_argument("--run_name", type=str, default=None, help="if None, auto-generate by time/jobid")
+
+# model hyperparams
+parser.add_argument("--n_atom_feats", type=int, default=55)
+parser.add_argument("--n_atom_hid", type=int, default=128)
+parser.add_argument("--rel_total", type=int, default=86)
+parser.add_argument("--lr", type=float, default=1e-4)
+parser.add_argument("--n_epochs", type=int, default=200)
+parser.add_argument("--kge_dim", type=int, default=128)
+parser.add_argument("--batch_size", type=int, default=128)
+
+parser.add_argument("--weight_decay", type=float, default=5e-4)
+parser.add_argument("--neg_samples", type=int, default=1)
+parser.add_argument("--data_size_ratio", type=int, default=1)
+parser.add_argument("--use_cuda", type=int, default=1, choices=[0, 1])
+
+# resume
+parser.add_argument("--resume_ckpt", type=str, default=None, help="checkpoint .pt to resume")
+
+args = parser.parse_args([])
+
+# --- seed / device ---
+set_seed(SEED)
+device = "cuda:0" if (torch.cuda.is_available() and args.use_cuda == 1) else "cpu"
+
+# --- paths ---
+BASE_DIR = args.base_dir
+import os
+os.chdir(f'{BASE_DIR}/XAI-DDI')
+sys.path.append(f"{BASE_DIR}/XAI-DDI/model")
+
+
+from route2 import models, custom_loss
+from route2.data_preprocessing import DrugDataset, DrugDataLoader
+
+# --- run naming / out dir ---
+jobid = os.environ.get("PBS_JOBID", "nojobid")
+ts = datetime.now().strftime("%y%m%d_%H%M%S")
+run_name = args.run_name or f"route2_{ts}_{jobid}"
+out_dir = os.path.join(BASE_DIR, args.out_dir)
+run_dir = os.path.join(out_dir, run_name)
+os.makedirs(run_dir, exist_ok=True)
+
+# files
+best_ckpt_path = os.path.join(run_dir, "best_s1.pt")
+last_ckpt_path = os.path.join(run_dir, "last.pt")
+log_path = os.path.join(run_dir, "stdout.log")
+
+print("===== RUN INFO =====")
+print("run_name:", run_name)
+print("run_dir :", run_dir)
+print("device  :", device)
+print("args    :", args)
+
+# --- dataset ---
+fold_dir = os.path.join(BASE_DIR, args.fold_dir)
+df_ddi_s1 = pd.read_csv(os.path.join(fold_dir, "val.csv"))
+df_ddi_s2 = pd.read_csv(os.path.join(fold_dir, "test.csv"))
+
+s1_tup = [(h, t, r) for h, t, r in zip(df_ddi_s1["d1"], df_ddi_s1["d2"], df_ddi_s1["type"])]
+s2_tup = [(h, t, r) for h, t, r in zip(df_ddi_s2["d1"], df_ddi_s2["d2"], df_ddi_s2["type"])]
+
+s1_data = DrugDataset(s1_tup, disjoint_split=True)
+s2_data = DrugDataset(s2_tup, disjoint_split=True)
+
+s1_loader = DrugDataLoader(s1_data, batch_size=args.batch_size * 3, num_workers=0)
+s2_loader = DrugDataLoader(s2_data, batch_size=args.batch_size * 3, num_workers=0)
+
+# KG embeddings
+kg_path = os.path.join(BASE_DIR, args.kg_emb_path)
+kg_features = pd.read_pickle(kg_path)
+
+# --- model ---
+model = models.MVN_DDI(
+    args.n_atom_feats, args.n_atom_hid, args.kge_dim, args.rel_total,
+    heads_out_feat_params=[64, 64, 64, 64],
+    blocks_params=[2, 2, 2, 2],
+    kg_emb_dim=200
+)
+model.to(device=device)
+
+path =  f'{BASE_DIR}/XAI-DDI/workspace/abci_benchmarking/baselines/DSN-DDI/results/260302_timesplit/route2_260303_134318_1665257.pbs1/best_s1.pt'
+ckpt = torch.load(path, map_location="cpu")
+model.load_state_dict(ckpt["model_state_dict"])
+
+s1_probas_pred = []
+s1_ground_truth = []
+s2_probas_pred = []
+s2_ground_truth = []    
+
+with torch.no_grad():
+    for batch in s1_loader:
+        p_score, n_score, probas_pred, ground_truth = do_compute(batch, device, model, kg_features)
+        s1_probas_pred.append(probas_pred)
+        s1_ground_truth.append(ground_truth)
+    s1_probas_pred = np.concatenate(s1_probas_pred)
+    s1_ground_truth = np.concatenate(s1_ground_truth)
+    s1_acc, s1_auc_roc, s1_f1, s1_precision, s1_recall, s1_int_ap, s1_ap = do_compute_metrics(s1_probas_pred, s1_ground_truth)
+
+    for batch in s2_loader:
+        p_score, n_score, probas_pred, ground_truth = do_compute(batch, device, model, kg_features)
+        s2_probas_pred.append(probas_pred)
+        s2_ground_truth.append(ground_truth)
+    s2_probas_pred = np.concatenate(s2_probas_pred)
+    s2_ground_truth = np.concatenate(s2_ground_truth)
+    s2_acc, s2_auc_roc, s2_f1, s2_precision, s2_recall, s2_int_ap, s2_ap = do_compute_metrics(s2_probas_pred, s2_ground_truth)  
+
+print("=== DSN-DDI Baseline Evaluation ===")
+print(f"S1: acc={s1_acc:.4f}, auc_roc={s1_auc_roc:.4f}, ap={s1_ap:.4f}, f1={s1_f1:.4f}, precision={s1_precision:.4f}, recall={s1_recall:.4f}, int_ap={s1_int_ap:.4f}")
+print(f"S2: acc={s2_acc:.4f}, auc_roc={s2_auc_roc:.4f}, ap={s2_ap:.4f}, f1={s2_f1:.4f}, precision={s2_precision:.4f}, recall={s2_recall:.4f}, int_ap={s2_int_ap:.4f}")
+
+# %%

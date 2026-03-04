@@ -318,7 +318,7 @@ scheduler = optim.lr_scheduler.LambdaLR(optimizer, lambda epoch: 0.96 ** epoch)
 
 model.to(device=device)
 
-path =  f'{BASE_DIR}/XAI-DDI/workspace/abci_benchmarking/baselines/DSN-DDI/results/260302_timesplit/route2_260302_220835_1664008.pbs1/best_s1.pt'
+path =  f'{BASE_DIR}/XAI-DDI/workspace/abci_benchmarking/baselines/DSN-DDI/results/260302_timesplit/route2_260303_134318_1665257.pbs1/best_s1.pt'
 ckpt = torch.load(path, map_location="cpu")
 model.load_state_dict(ckpt["model_state_dict"])
 
